@@ -1,24 +1,23 @@
 #!/bin/bash
 
-# Stop the script immediately if a command fails.
+# Stop the script if a command fails.
 set -e
 
-# Create a test message to send through the virtual network.
-printf '%s\n' "Hello from sender" | sudo tee /tmp/message.txt > /dev/null
+# Create the message to send.
+echo "Hello from sender" > /tmp/message.txt
 
-# Start Netcat inside the receiver namespace and save incoming data.
-# The ampersand runs the receiver in the background so this script can continue.
-sudo ip netns exec receiver sh -c 'nc -l 5000 > /tmp/received.txt' &
+# Start the receiver in the background and save incoming data.
+ip netns exec receiver nc -l 5000 > /tmp/received.txt &
 receiver_pid=$!
 
-# Give the receiver a moment to begin listening on port 5000.
+# Give the receiver time to start listening.
 sleep 1
 
-# Send the message from the sender namespace to the receiver's IP address.
-sudo ip netns exec sender sh -c 'nc 10.0.0.2 5000 < /tmp/message.txt'
+# Send the message; -N closes the connection after the file is sent.
+ip netns exec sender nc -N 10.0.0.2 5000 < /tmp/message.txt
 
-# Wait for the receiver process to finish writing the received file.
+# Wait for the receiver to finish writing the file.
 wait "$receiver_pid"
 
-# Display the received message so the transfer can be checked.
+# Display the complete received message.
 cat /tmp/received.txt
